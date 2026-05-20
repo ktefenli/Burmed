@@ -36,7 +36,6 @@ jobs:
       - name: Rebrand Cargo.toml (package name)
         shell: bash
         run: |
-          # Sadece [package] altindaki name = "rustdesk" -> "burmed"
           sed -i 's/^name = "rustdesk"/name = "burmed"/' Cargo.toml
           sed -i 's/^default-run = "rustdesk"/default-run = "burmed"/' Cargo.toml
           echo "--- Cargo.toml ilk 15 satir ---"
@@ -58,12 +57,21 @@ jobs:
         with:
           vcpkgGitCommitId: ${{ env.VCPKG_COMMIT_ID }}
 
-      - name: Install vcpkg dependencies
+      # DEGISTI: artik vcpkg.json'u okuyacak, classic mode kullaniyoruz
+      - name: Install vcpkg dependencies (classic mode)
         shell: bash
         env:
           VCPKG_DEFAULT_TRIPLET: x64-windows-static
         run: |
-          "$VCPKG_ROOT/vcpkg" install libvpx libyuv opus aom
+          # vcpkg.json'u gecici olarak gizle ki classic mode'a gecsin
+          if [ -f vcpkg.json ]; then
+            mv vcpkg.json vcpkg.json.bak
+          fi
+          "$VCPKG_ROOT/vcpkg" install libvpx libyuv opus aom --triplet x64-windows-static
+          # Geri yukle
+          if [ -f vcpkg.json.bak ]; then
+            mv vcpkg.json.bak vcpkg.json
+          fi
 
       - name: Install Sciter DLL
         shell: bash
@@ -84,7 +92,6 @@ jobs:
         shell: bash
         run: |
           mkdir -p dist
-          # Exe adi 'burmed.exe' olacak (Cargo.toml degisikligi sonrasi)
           if [ -f target/release/burmed.exe ]; then
             cp target/release/burmed.exe dist/Burmed.exe
           elif [ -f target/release/rustdesk.exe ]; then
