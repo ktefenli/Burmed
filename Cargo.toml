@@ -1,15 +1,15 @@
 [package]
-name = "rustdesk"
+name = "Burmed"
 version = "1.4.6"
-authors = ["rustdesk <info@rustdesk.com>"]
+authors = ["Burmed <tefenli@gmail.com>"]
 edition = "2021"
 build= "build.rs"
-description = "RustDesk Remote Desktop"
-default-run = "rustdesk"
+description = "Burmed Remote Desktop"
+default-run = "Burmed"
 rust-version = "1.75"
 
 [lib]
-name = "librustdesk"
+name = "libBurmed"
 crate-type = ["cdylib", "staticlib", "rlib"]
 
 [[bin]]
