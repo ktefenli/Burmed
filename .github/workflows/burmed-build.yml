@@ -9,17 +9,21 @@ env:
   RUST_VERSION: "1.75"
   VCPKG_COMMIT_ID: "6f29f12e82a8293156836ad81cc9bf5af41fe836"
   APP_NAME: "Burmed"
+  # vcpkg binary cache'i tamamen kapat (GHA token sorununu cozer)
+  VCPKG_BINARY_SOURCES: "clear"
 
 jobs:
   build-windows:
     runs-on: windows-2022
+    permissions:
+      contents: read
+      actions: write
     steps:
       - name: Checkout (with submodules)
         uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      # === REBRAND: APP_NAME -> Burmed (submodule icinde sed ile) ===
       - name: Rebrand APP_NAME in hbb_common
         shell: bash
         run: |
@@ -52,23 +56,22 @@ jobs:
         with:
           version: ${{ env.LLVM_VERSION }}
 
-      - name: Setup vcpkg
+      - name: Setup vcpkg (no binary cache)
         uses: lukka/run-vcpkg@v11
         with:
           vcpkgGitCommitId: ${{ env.VCPKG_COMMIT_ID }}
+          doNotCache: true
 
-      # DEGISTI: artik vcpkg.json'u okuyacak, classic mode kullaniyoruz
       - name: Install vcpkg dependencies (classic mode)
         shell: bash
         env:
           VCPKG_DEFAULT_TRIPLET: x64-windows-static
+          VCPKG_BINARY_SOURCES: "clear"
         run: |
-          # vcpkg.json'u gecici olarak gizle ki classic mode'a gecsin
           if [ -f vcpkg.json ]; then
             mv vcpkg.json vcpkg.json.bak
           fi
           "$VCPKG_ROOT/vcpkg" install libvpx libyuv opus aom --triplet x64-windows-static
-          # Geri yukle
           if [ -f vcpkg.json.bak ]; then
             mv vcpkg.json.bak vcpkg.json
           fi
@@ -85,6 +88,7 @@ jobs:
         env:
           VCPKG_ROOT: ${{ github.workspace }}/vcpkg
           VCPKG_DEFAULT_TRIPLET: x64-windows-static
+          VCPKG_BINARY_SOURCES: "clear"
         run: |
           cargo build --release --features inline
 
