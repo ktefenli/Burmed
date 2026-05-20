@@ -9,7 +9,6 @@ env:
   RUST_VERSION: "1.75"
   VCPKG_COMMIT_ID: "6f29f12e82a8293156836ad81cc9bf5af41fe836"
   APP_NAME: "Burmed"
-  # vcpkg binary cache'i tamamen kapat (GHA token sorununu cozer)
   VCPKG_BINARY_SOURCES: "clear"
 
 jobs:
@@ -23,6 +22,11 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: recursive
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
 
       - name: Rebrand APP_NAME in hbb_common
         shell: bash
@@ -82,6 +86,26 @@ jobs:
           mkdir -p target/release
           curl -L -o target/release/sciter.dll \
             https://raw.githubusercontent.com/c-smile/sciter-sdk/master/bin.win/x64/sciter.dll
+
+      # YENI: inline.rs uretimi (Python script ile)
+      - name: Generate src/ui/inline.rs
+        shell: bash
+        run: |
+          if [ -f res/inline-sciter.py ]; then
+            python3 res/inline-sciter.py
+            echo "--- inline.rs olusturuldu ---"
+            ls -la src/ui/inline.rs
+          else
+            echo "UYARI: res/inline-sciter.py bulunamadi, inline.rs uretilemiyor"
+            echo "Bos inline.rs yaratiliyor (fallback)..."
+            cat > src/ui/inline.rs << 'EOF'
+          pub fn get_index() -> String { String::new() }
+          pub fn get_cm() -> String { String::new() }
+          pub fn get_install() -> String { String::new() }
+          pub fn get_remote() -> String { String::new() }
+          pub fn get_chatbox() -> String { String::new() }
+          EOF
+          fi
 
       - name: Build Burmed (release)
         shell: bash
