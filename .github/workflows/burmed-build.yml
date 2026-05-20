@@ -1,0 +1,101 @@
+name: Build Burmed (Windows)
+
+on:
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  LLVM_VERSION: "15.0.6"
+  RUST_VERSION: "1.75"
+  VCPKG_COMMIT_ID: "6f29f12e82a8293156836ad81cc9bf5af41fe836"
+  APP_NAME: "Burmed"
+
+jobs:
+  build-windows:
+    runs-on: windows-2022
+    steps:
+      - name: Checkout (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      # === REBRAND: APP_NAME -> Burmed (submodule icinde sed ile) ===
+      - name: Rebrand APP_NAME in hbb_common
+        shell: bash
+        run: |
+          FILE="libs/hbb_common/src/config.rs"
+          if [ -f "$FILE" ]; then
+            sed -i 's/"RustDesk"\.to_owned()/"Burmed".to_owned()/g' "$FILE"
+            echo "--- APP_NAME degisiklik kontrolu ---"
+            grep "APP_NAME" "$FILE" | head -5
+          else
+            echo "HATA: $FILE bulunamadi"
+            exit 1
+          fi
+
+      - name: Rebrand Cargo.toml (package name)
+        shell: bash
+        run: |
+          # Sadece [package] altindaki name = "rustdesk" -> "burmed"
+          sed -i 's/^name = "rustdesk"/name = "burmed"/' Cargo.toml
+          sed -i 's/^default-run = "rustdesk"/default-run = "burmed"/' Cargo.toml
+          echo "--- Cargo.toml ilk 15 satir ---"
+          head -15 Cargo.toml
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+          targets: x86_64-pc-windows-msvc
+
+      - name: Install LLVM and Clang
+        uses: KyleMayes/install-llvm-action@v2
+        with:
+          version: ${{ env.LLVM_VERSION }}
+
+      - name: Setup vcpkg
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgGitCommitId: ${{ env.VCPKG_COMMIT_ID }}
+
+      - name: Install vcpkg dependencies
+        shell: bash
+        env:
+          VCPKG_DEFAULT_TRIPLET: x64-windows-static
+        run: |
+          "$VCPKG_ROOT/vcpkg" install libvpx libyuv opus aom
+
+      - name: Install Sciter DLL
+        shell: bash
+        run: |
+          mkdir -p target/release
+          curl -L -o target/release/sciter.dll \
+            https://raw.githubusercontent.com/c-smile/sciter-sdk/master/bin.win/x64/sciter.dll
+
+      - name: Build Burmed (release)
+        shell: bash
+        env:
+          VCPKG_ROOT: ${{ github.workspace }}/vcpkg
+          VCPKG_DEFAULT_TRIPLET: x64-windows-static
+        run: |
+          cargo build --release --features inline
+
+      - name: Package artifact
+        shell: bash
+        run: |
+          mkdir -p dist
+          # Exe adi 'burmed.exe' olacak (Cargo.toml degisikligi sonrasi)
+          if [ -f target/release/burmed.exe ]; then
+            cp target/release/burmed.exe dist/Burmed.exe
+          elif [ -f target/release/rustdesk.exe ]; then
+            cp target/release/rustdesk.exe dist/Burmed.exe
+          fi
+          cp target/release/sciter.dll dist/ 2>/dev/null || true
+          ls -la dist/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Burmed-windows-x86_64
+          path: dist/
+          retention-days: 14
