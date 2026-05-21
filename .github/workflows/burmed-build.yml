@@ -28,6 +28,7 @@ jobs:
         with:
           python-version: "3.11"
 
+      # APP_NAME degisecek (kullanici "Burmed" gorur)
       - name: Rebrand APP_NAME in hbb_common
         shell: bash
         run: |
@@ -41,13 +42,22 @@ jobs:
             exit 1
           fi
 
-      - name: Rebrand Cargo.toml (package name)
+      # Windows EXE metadata: sag tik -> Ozellikler -> Ayrintilar kismi
+      - name: Rebrand Windows EXE metadata in Cargo.toml
         shell: bash
         run: |
-          sed -i 's/^name = "rustdesk"/name = "burmed"/' Cargo.toml
-          sed -i 's/^default-run = "rustdesk"/default-run = "burmed"/' Cargo.toml
-          echo "--- Cargo.toml ilk 15 satir ---"
-          head -15 Cargo.toml
+          # Telif, urun adi, dosya aciklamasi gibi alanlari Burmed yap
+          sed -i 's/LegalCopyright = "Copyright © 2025 Purslane Ltd. All rights reserved."/LegalCopyright = "Copyright © 2026 Burmed. All rights reserved."/g' Cargo.toml
+          sed -i 's/ProductName = "RustDesk"/ProductName = "Burmed"/g' Cargo.toml
+          sed -i 's/FileDescription = "RustDesk Remote Desktop"/FileDescription = "Burmed Remote Desktop"/g' Cargo.toml
+          # macOS bundle adi
+          sed -i 's/^name = "RustDesk"$/name = "Burmed"/g' Cargo.toml
+          sed -i 's/identifier = "com.carriez.rustdesk"/identifier = "com.burmed.app"/g' Cargo.toml
+          # description (genel)
+          sed -i 's/description = "RustDesk Remote Desktop"/description = "Burmed Remote Desktop"/g' Cargo.toml
+          
+          echo "--- Cargo.toml metadata kontrol ---"
+          grep -E "(ProductName|FileDescription|LegalCopyright|description)" Cargo.toml | head -20
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -87,7 +97,6 @@ jobs:
           curl -L -o target/release/sciter.dll \
             https://raw.githubusercontent.com/c-smile/sciter-sdk/master/bin.win/x64/sciter.dll
 
-      # YENI: inline.rs uretimi (Python script ile)
       - name: Generate src/ui/inline.rs
         shell: bash
         run: |
@@ -96,8 +105,7 @@ jobs:
             echo "--- inline.rs olusturuldu ---"
             ls -la src/ui/inline.rs
           else
-            echo "UYARI: res/inline-sciter.py bulunamadi, inline.rs uretilemiyor"
-            echo "Bos inline.rs yaratiliyor (fallback)..."
+            echo "UYARI: res/inline-sciter.py bulunamadi, fallback olusturuluyor"
             cat > src/ui/inline.rs << 'EOF'
           pub fn get_index() -> String { String::new() }
           pub fn get_cm() -> String { String::new() }
@@ -107,7 +115,7 @@ jobs:
           EOF
           fi
 
-      - name: Build Burmed (release)
+      - name: Build (release)
         shell: bash
         env:
           VCPKG_ROOT: ${{ github.workspace }}/vcpkg
@@ -116,14 +124,17 @@ jobs:
         run: |
           cargo build --release --features inline
 
-      - name: Package artifact
+      - name: Package as Burmed.exe
         shell: bash
         run: |
           mkdir -p dist
-          if [ -f target/release/burmed.exe ]; then
-            cp target/release/burmed.exe dist/Burmed.exe
-          elif [ -f target/release/rustdesk.exe ]; then
+          if [ -f target/release/rustdesk.exe ]; then
             cp target/release/rustdesk.exe dist/Burmed.exe
+            echo "rustdesk.exe -> Burmed.exe kopyalandi"
+          else
+            echo "HATA: target/release/rustdesk.exe bulunamadi"
+            ls -la target/release/ | head -20
+            exit 1
           fi
           cp target/release/sciter.dll dist/ 2>/dev/null || true
           ls -la dist/
